@@ -56,7 +56,6 @@ class CryptogramSolver
   end
 
   def guess(letter_mapping, reverse_letter_mapping, encrypted_words) : Array(Hash(Char,Char))
-    # encrypted_words = encrypted_words.clone
     encrypted_words = encrypted_words.sort_by {|word| find_candidate_word_matches(word, letter_mapping).size }
     encrypted_word = encrypted_words.shift?
     if encrypted_word
