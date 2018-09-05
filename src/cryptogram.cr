@@ -33,8 +33,9 @@ class CryptogramSolver
   def solve(phrase)
     phrase = phrase.downcase
     encrypted_words = phrase.split(" ")
+    unique_encrypted_letters = encrypted_words.join.each_char.uniq.to_set
 
-    letter_mappings = guess({} of Char => Char, encrypted_words)
+    letter_mappings = guess({} of Char => Char, encrypted_words, unique_encrypted_letters)
     # puts(letter_mappings)
 
     letter_mappings.map do |letter_mapping|
@@ -42,10 +43,10 @@ class CryptogramSolver
     end
   end
 
-  def guess(letter_mapping, encrypted_words) : Array(Hash(Char,Char))
+  def guess(letter_mapping, encrypted_words, unique_encrypted_letters) : Array(Hash(Char,Char))
     encrypted_words = encrypted_words.clone
     encrypted_word = encrypted_words.shift?
-    if encrypted_word
+    if encrypted_word && letter_mapping.keys.size != unique_encrypted_letters.size
       words = find_candidate_word_matches(encrypted_word, letter_mapping)
       # puts "#{words.size} candidate words for #{encrypted_word}"
       word_to_letter_mappings = words.reduce({} of String => (Hash(Char, Char))) do |memo, word|
@@ -54,7 +55,7 @@ class CryptogramSolver
         memo
       end
       word_to_letter_mappings.values.flat_map do |letter_mapping|
-        guess(letter_mapping, encrypted_words).as(Array(Hash(Char,Char)))
+        guess(letter_mapping, encrypted_words, unique_encrypted_letters).as(Array(Hash(Char,Char)))
       end
     else
       [letter_mapping]
