@@ -100,8 +100,6 @@ class CryptogramSolver
   end
 end
 
-
-
 def main
   file_path = ARGV.first
 
