@@ -98,8 +98,6 @@ class CryptogramSolver
 
     letter_mapping.merge(word_specific_letter_mapping)
   end
-
-
 end
 
 
