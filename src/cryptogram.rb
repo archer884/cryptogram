@@ -1,10 +1,11 @@
-class CryptogramSolver
-  @pos_char_to_words_map = {} of Int32 => Hash(Char, Set(String))
-  @word_length_to_words_map = {} of Int32 => Set(String)
+require 'set'
 
+class CryptogramSolver
   def initialize(file_path)
+    @pos_char_to_words_map = {}
+    @word_length_to_words_map = {}
     t1=Time.now
-    @words = File.read_lines(file_path)
+    @words = File.readlines(file_path).map(&:strip)
     build_indices
     t2=Time.now
     puts "time to build indices: #{t2-t1}"
@@ -12,12 +13,12 @@ class CryptogramSolver
   
   def build_indices
     @words.each do |word|
-      @word_length_to_words_map[word.size] = Set(String).new unless @word_length_to_words_map.has_key?(word.size)
+      @word_length_to_words_map[word.size] ||= Set.new
       @word_length_to_words_map[word.size] << word
 
       word.each_char.each_with_index do |char, index|
-        @pos_char_to_words_map[index] = {} of Char => Set(String) unless @pos_char_to_words_map.has_key?(index)
-        @pos_char_to_words_map[index][char] = Set(String).new unless @pos_char_to_words_map[index].has_key? char
+        @pos_char_to_words_map[index] ||= {}
+        @pos_char_to_words_map[index][char] ||= Set.new
         @pos_char_to_words_map[index][char] << word
       end
     end
@@ -26,49 +27,49 @@ class CryptogramSolver
   end
 
   def find_words_by_letter_and_position(letter, letter_index_position)
-    @pos_char_to_words_map[letter_index_position][letter]? || Set(String).new
+    @pos_char_to_words_map[letter_index_position][letter] || Set.new
   end
 
   def find_words_by_length(length)
-    @word_length_to_words_map[length]? || Set(String).new
+    @word_length_to_words_map[length] || Set.new
   end
 
   def solve(phrase)
     phrase = phrase.downcase
     encrypted_words = phrase.split(" ")
 
-    letter_mappings = guess({} of Char => Char, encrypted_words)
+    letter_mappings = guess({}, encrypted_words)
     # puts(letter_mappings)
 
     letter_mappings.map do |letter_mapping|
-      phrase.each_char.map {|encrypted_char| letter_mapping[encrypted_char]? || ' ' }.join
+      phrase.each_char.map {|encrypted_char| letter_mapping[encrypted_char] || ' ' }.join
     end
   end
 
-  def guess(letter_mapping, encrypted_words) : Array(Hash(Char,Char))
+  def guess(letter_mapping, encrypted_words)
     encrypted_words = encrypted_words.clone
-    encrypted_word = encrypted_words.shift?
+    encrypted_word = encrypted_words.shift
     if encrypted_word
       words = find_candidate_word_matches(encrypted_word, letter_mapping)
       # puts "#{words.size} candidate words for #{encrypted_word}"
-      word_to_letter_mappings = words.reduce({} of String => (Hash(Char, Char))) do |memo, word|
+      word_to_letter_mappings = words.reduce({}) do |memo, word|
         mapping = is_word_possible_match?(word, encrypted_word, letter_mapping)
         memo[word] = mapping if mapping
         memo
       end
       word_to_letter_mappings.values.flat_map do |letter_mapping|
-        guess(letter_mapping, encrypted_words).as(Array(Hash(Char,Char)))
+        guess(letter_mapping, encrypted_words)
       end
     else
       [letter_mapping]
     end
   end
 
-  def find_candidate_word_matches(encrypted_word, letter_mapping : Hash(Char, Char)) : Set(String)
+  def find_candidate_word_matches(encrypted_word, letter_mapping)
     candidate_word_set = find_words_by_length(encrypted_word.size)
 
     encrypted_word.each_char.each_with_index do |encrypted_char, index|
-      plaintext_char = letter_mapping[encrypted_char]?
+      plaintext_char = letter_mapping[encrypted_char]
       if plaintext_char
         candidate_word_set &= find_words_by_letter_and_position(plaintext_char, index)
       end
@@ -82,11 +83,11 @@ class CryptogramSolver
   def is_word_possible_match?(word, encrypted_word, letter_mapping)
     # return nil unless word.size == encrypted_word.size      // not needed because find_candidate_word_matches will ensure this is true
 
-    word_specific_letter_mapping = {} of Char => Char
+    word_specific_letter_mapping = {}
     encrypted_word.each_char.each_with_index do |encrypted_char, index|
       plaintext_char = word[index]
 
-      mapped_char = word_specific_letter_mapping[encrypted_char]?
+      mapped_char = word_specific_letter_mapping[encrypted_char]
       return nil if mapped_char && mapped_char != word[index]
       # return nil if word_specific_letter_mapping.has_key?(encrypted_char) && word_specific_letter_mapping[encrypted_char] != word[index]
       
