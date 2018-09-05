@@ -8,7 +8,6 @@ class CryptogramSolver
   end
   
   def build_indices
-    @pos_char_to_words_map = {} of Int32 => Hash(Char, Set(String))
     @words.each do |word|
       @word_length_to_words_map[word.size] = Set(String).new unless @word_length_to_words_map.has_key?(word.size)
       @word_length_to_words_map[word.size] << word
@@ -100,13 +99,21 @@ class CryptogramSolver
   end
 end
 
+def gen_cryptogram(input)
+  words = input.split(" ")
+  map = ('a'..'z').to_a.zip(('a'..'z').to_a.shuffle).to_h
+  words.map {|word| word.each_char.map {|c| map[c]}.join }.join(" ")
+end  
+
 def main
   file_path = ARGV.first
 
   t1 = Time.now
   solver = CryptogramSolver.new(file_path)
   
-  phrase = "NIJBVO OBJO YAVWJB ABVB"    # "insert test phrase here"
+  # phrase = "NIJBVO OBJO YAVWJB ABVB"    # "insert test phrase here"
+  phrase = gen_cryptogram("most food is yummy")
+  puts phrase
 
   solutions = solver.solve(phrase)
   t2 = Time.now
