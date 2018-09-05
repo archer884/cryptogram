@@ -1,0 +1,13 @@
+name: cryptogram
+version: 0.1.0
+
+authors:
+  - David Ellis <davidkellis@gmail.com>
+
+targets:
+  cryptogram:
+    main: src/cryptogram.cr
+
+crystal: 0.26.1
+
+license: MIT
