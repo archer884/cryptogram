@@ -1,6 +1,7 @@
 class CryptogramSolver
   @pos_char_to_words_map = {} of Int32 => Hash(Char, Set(String))
-  @word_length_to_words_map = {} of Int32 => Set(String)
+  # @word_length_to_words_map = {} of Int32 => Set(String)
+  @word_pattern_to_words = {} of Array(Int32) => Set(String)
 
   def initialize(file_path)
     t1=Time.now
@@ -12,8 +13,12 @@ class CryptogramSolver
   
   def build_indices
     @words.each do |word|
-      @word_length_to_words_map[word.size] = Set(String).new unless @word_length_to_words_map.has_key?(word.size)
-      @word_length_to_words_map[word.size] << word
+      # @word_length_to_words_map[word.size] = Set(String).new unless @word_length_to_words_map.has_key?(word.size)
+      # @word_length_to_words_map[word.size] << word
+
+      pattern = word_pattern(word)
+      @word_pattern_to_words[pattern] = Set(String).new unless @word_pattern_to_words.has_key?(pattern)
+      @word_pattern_to_words[pattern] << word
 
       word.each_char.each_with_index do |char, index|
         @pos_char_to_words_map[index] = {} of Char => Set(String) unless @pos_char_to_words_map.has_key?(index)
@@ -21,7 +26,6 @@ class CryptogramSolver
         @pos_char_to_words_map[index][char] << word
       end
     end
-    # puts @pos_char_to_words_map.inspect
     puts "done building indices"
   end
 
@@ -29,35 +33,43 @@ class CryptogramSolver
     @pos_char_to_words_map[letter_index_position][letter]? || Set(String).new
   end
 
-  def find_words_by_length(length)
-    @word_length_to_words_map[length]? || Set(String).new
+  # def find_words_by_length(length)
+  #   @word_length_to_words_map[length]? || Set(String).new
+  # end
+
+  def find_words_by_pattern(word_pattern)
+    @word_pattern_to_words[word_pattern]? || Set(String).new
   end
 
   def solve(phrase)
     phrase = phrase.downcase
     encrypted_words = phrase.split(" ")
 
-    letter_mappings = guess({} of Char => Char, encrypted_words)
+    letter_mappings = guess({} of Char => Char, {} of Char => Char, encrypted_words)
     # puts(letter_mappings)
 
     letter_mappings.map do |letter_mapping|
-      phrase.each_char.map {|encrypted_char| letter_mapping[encrypted_char]? || ' ' }.join
+      new_phrase = phrase.each_char.map {|encrypted_char| letter_mapping[encrypted_char]? || ' ' }.join
+      puts "#{new_phrase} - #{letter_mapping.each.to_a.sort_by{|pair| pair[0] }.map{|(k,v)| "#{k}->#{v}" }.join(" ")}"
+      new_phrase
     end
   end
 
-  def guess(letter_mapping, encrypted_words) : Array(Hash(Char,Char))
-    encrypted_words = encrypted_words.clone
+  def guess(letter_mapping, reverse_letter_mapping, encrypted_words) : Array(Hash(Char,Char))
+    # encrypted_words = encrypted_words.clone
+    encrypted_words = encrypted_words.sort_by {|word| find_candidate_word_matches(word, letter_mapping).size }
     encrypted_word = encrypted_words.shift?
     if encrypted_word
       words = find_candidate_word_matches(encrypted_word, letter_mapping)
       # puts "#{words.size} candidate words for #{encrypted_word}"
-      word_to_letter_mappings = words.reduce({} of String => (Hash(Char, Char))) do |memo, word|
-        mapping = is_word_possible_match?(word, encrypted_word, letter_mapping)
-        memo[word] = mapping if mapping
+      word_to_letter_mappings = words.reduce({} of String => Tuple(Hash(Char, Char), Hash(Char, Char))) do |memo, word|
+        mapping_pair = try_extend_mapping(word, encrypted_word, letter_mapping, reverse_letter_mapping)
+        memo[word] = mapping_pair if mapping_pair
         memo
       end
-      word_to_letter_mappings.values.flat_map do |letter_mapping|
-        guess(letter_mapping, encrypted_words).as(Array(Hash(Char,Char)))
+      word_to_letter_mappings.values.flat_map do |letter_mapping_pair|
+        letter_mapping, reverse_letter_mapping = letter_mapping_pair
+        guess(letter_mapping, reverse_letter_mapping, encrypted_words).as(Array(Hash(Char,Char)))
       end
     else
       [letter_mapping]
@@ -65,7 +77,8 @@ class CryptogramSolver
   end
 
   def find_candidate_word_matches(encrypted_word, letter_mapping : Hash(Char, Char)) : Set(String)
-    candidate_word_set = find_words_by_length(encrypted_word.size)
+    # candidate_word_set = find_words_by_length(encrypted_word.size)
+    candidate_word_set = find_words_by_pattern(word_pattern(encrypted_word))
 
     encrypted_word.each_char.each_with_index do |encrypted_char, index|
       plaintext_char = letter_mapping[encrypted_char]?
@@ -77,28 +90,40 @@ class CryptogramSolver
     candidate_word_set
   end
 
+  def word_pattern(word)
+    count = 0
+    char_to_number = Hash(Char,Int32).new
+    word.each_char.map do |char|
+      char_to_number[char]? || (char_to_number[char] = (count += 1))
+    end.to_a
+  end
+
   # if word is a possible match for the encrypted_word, given the existing letter_mapping, then this function returns the
   # combined letter mappings of the word-specific letter mappings and the existing letter mappings; nil otherwise
-  def is_word_possible_match?(word, encrypted_word, letter_mapping)
+  # Assumes word.size == encrypted_word.size
+  def try_extend_mapping(word, encrypted_word, letter_mapping, reverse_letter_mapping) : Tuple(Hash(Char, Char), Hash(Char, Char)) | Nil
     # return nil unless word.size == encrypted_word.size      // not needed because find_candidate_word_matches will ensure this is true
 
-    word_specific_letter_mapping = {} of Char => Char
+    letter_mapping, reverse_letter_mapping = letter_mapping.clone, reverse_letter_mapping.clone
     encrypted_word.each_char.each_with_index do |encrypted_char, index|
       plaintext_char = word[index]
 
-      mapped_char = word_specific_letter_mapping[encrypted_char]?
-      return nil if mapped_char && mapped_char != word[index]
-      # return nil if word_specific_letter_mapping.has_key?(encrypted_char) && word_specific_letter_mapping[encrypted_char] != word[index]
-      
-      return nil if letter_mapping.has_key?(encrypted_char) && letter_mapping[encrypted_char] != word[index]
+      # we have a word-derived mapping: encrypted_char -> plaintext_char
+      # we need to make sure it doesn't conflict with any pre-existing mappings
 
-      word_specific_letter_mapping[encrypted_char] = word[index]
+      # ensure none of the existing mappings conflict with the new candidate mapping
+      pre_existing_mapped_char = letter_mapping[encrypted_char]?
+      return nil if pre_existing_mapped_char && pre_existing_mapped_char != plaintext_char
+
+      # ensure none of the existing reverse mappings conflict with the new candidate mapping
+      pre_existing_reverse_mapped_char = reverse_letter_mapping[plaintext_char]?
+      return nil if pre_existing_reverse_mapped_char && pre_existing_reverse_mapped_char != encrypted_char
+
+      letter_mapping[encrypted_char] = plaintext_char
+      reverse_letter_mapping[plaintext_char] = encrypted_char
     end
 
-    # ensure none of the mappings from letter_mapping conflict with the mappings in word_specific_letter_mapping
-    # return nil if word_specific_letter_mapping.any? {|k,v| letter_mapping.has_key?(k) && letter_mapping[k] != v }   // this check is baked into the logic above
-
-    letter_mapping.merge(word_specific_letter_mapping)
+    {letter_mapping, reverse_letter_mapping}
   end
 end
 
@@ -111,14 +136,14 @@ end
 def main
   file_path = ARGV.first
 
-  t1 = Time.now
   solver = CryptogramSolver.new(file_path)
   
-  # phrase = "NIJBVO OBJO YAVWJB ABVB"    # "insert test phrase here"
-  phrase = gen_cryptogram("insert test phrase here")
+  phrase = "NIJBVO OBJO YAVWJB ABVB"    # "insert test phrase here"
+  # phrase = gen_cryptogram("insert test phrase here")
   # phrase = gen_cryptogram("most food is yummy")
   puts phrase
 
+  t1 = Time.now
   solutions = solver.solve(phrase)
   t2 = Time.now
   puts t2-t1

@@ -3,7 +3,9 @@ require 'set'
 class CryptogramSolver
   def initialize(file_path)
     @pos_char_to_words_map = {}
-    @word_length_to_words_map = {}
+    # @word_length_to_words_map = {}
+    @word_pattern_to_words = {}
+
     t1=Time.now
     @words = File.readlines(file_path).map(&:strip)
     build_indices
@@ -13,8 +15,12 @@ class CryptogramSolver
   
   def build_indices
     @words.each do |word|
-      @word_length_to_words_map[word.size] ||= Set.new
-      @word_length_to_words_map[word.size] << word
+      # @word_length_to_words_map[word.size] ||= Set.new
+      # @word_length_to_words_map[word.size] << word
+
+      pattern = word_pattern(word)
+      @word_pattern_to_words[pattern] ||= Set.new
+      @word_pattern_to_words[pattern] << word
 
       word.each_char.each_with_index do |char, index|
         @pos_char_to_words_map[index] ||= {}
@@ -30,8 +36,12 @@ class CryptogramSolver
     @pos_char_to_words_map[letter_index_position][letter] || Set.new
   end
 
-  def find_words_by_length(length)
-    @word_length_to_words_map[length] || Set.new
+  # def find_words_by_length(length)
+  #   @word_length_to_words_map[length] || Set.new
+  # end
+
+  def find_words_by_pattern(word_pattern)
+    @word_pattern_to_words[word_pattern] || Set.new
   end
 
   def solve(phrase)
@@ -66,7 +76,7 @@ class CryptogramSolver
   end
 
   def find_candidate_word_matches(encrypted_word, letter_mapping)
-    candidate_word_set = find_words_by_length(encrypted_word.size)
+    candidate_word_set = find_words_by_pattern(word_pattern(encrypted_word))
 
     encrypted_word.each_char.each_with_index do |encrypted_char, index|
       plaintext_char = letter_mapping[encrypted_char]
@@ -76,6 +86,14 @@ class CryptogramSolver
     end
 
     candidate_word_set
+  end
+
+  def word_pattern(word)
+    count = 0
+    char_to_number = {}
+    word.each_char.map do |char|
+      char_to_number[char] || (char_to_number[char] = (count += 1))
+    end
   end
 
   # if word is a possible match for the encrypted_word, given the existing letter_mapping, then this function returns the
