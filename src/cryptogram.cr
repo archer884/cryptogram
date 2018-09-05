@@ -112,7 +112,8 @@ def main
   solver = CryptogramSolver.new(file_path)
   
   # phrase = "NIJBVO OBJO YAVWJB ABVB"    # "insert test phrase here"
-  phrase = gen_cryptogram("most food is yummy")
+  phrase = gen_cryptogram("insert test phrase here")
+  # phrase = gen_cryptogram("most food is yummy")
   puts phrase
 
   solutions = solver.solve(phrase)
