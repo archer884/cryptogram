@@ -53,7 +53,7 @@ class CryptogramSolver
 
     letter_mappings.map do |letter_mapping|
       new_phrase = phrase.each_char.map {|encrypted_char| letter_mapping[encrypted_char] || ' ' }.join
-      puts "#{new_phrase} - #{letter_mapping.each.to_a.sort_by{|pair| pair[0] }.map{|(k,v)| "#{k}->#{v}" }.join(" ")}"
+      # puts "#{new_phrase} - #{letter_mapping.each.to_a.sort_by{|pair| pair[0] }.map{|(k,v)| "#{k}->#{v}" }.join(" ")}"
       new_phrase
     end
   end
@@ -140,7 +140,8 @@ def main
 
   solver = CryptogramSolver.new(file_path)
   
-  phrase = "NIJBVO OBJO YAVWJB ABVB"    # "insert test phrase here"
+  # phrase = "NIJBVO OBJO YAVWJB ABVB"    # "insert test phrase here"
+  phrase = "the best way to find yourself is to lose yourself in the service of others"
   # phrase = gen_cryptogram("insert test phrase here")
   # phrase = gen_cryptogram("most food is yummy")
   puts phrase
