@@ -2,6 +2,7 @@ class CryptogramSolver
   @pos_char_to_words_map = {} of Int32 => Hash(Char, Set(String))
   # @word_length_to_words_map = {} of Int32 => Set(String)
   @word_pattern_to_words = {} of Array(Int32) => Set(String)
+  @number_of_branches_evaluated = 0
 
   def initialize(file_path)
     t1=Time.now
@@ -42,11 +43,14 @@ class CryptogramSolver
   end
 
   def solve(phrase)
+    @number_of_branches_evaluated = 0
+
     phrase = phrase.downcase
     encrypted_words = phrase.split(" ")
 
     letter_mappings = guess({} of Char => Char, {} of Char => Char, encrypted_words)
     # puts(letter_mappings)
+    puts "#{@number_of_branches_evaluated} branches evaluated"
 
     letter_mappings.map do |letter_mapping|
       new_phrase = phrase.each_char.map {|encrypted_char| letter_mapping[encrypted_char]? || ' ' }.join
@@ -63,7 +67,11 @@ class CryptogramSolver
       # puts "#{words.size} candidate words for #{encrypted_word}"
       word_to_letter_mappings = words.reduce({} of String => Tuple(Hash(Char, Char), Hash(Char, Char))) do |memo, word|
         mapping_pair = try_extend_mapping(word, encrypted_word, letter_mapping, reverse_letter_mapping)
-        memo[word] = mapping_pair if mapping_pair
+        if mapping_pair
+          memo[word] = mapping_pair
+        else
+          @number_of_branches_evaluated += 1    # mapping_pair was nil, so we pruned that branch
+        end
         memo
       end
       word_to_letter_mappings.values.flat_map do |letter_mapping_pair|
@@ -71,6 +79,7 @@ class CryptogramSolver
         guess(letter_mapping, reverse_letter_mapping, encrypted_words).as(Array(Hash(Char,Char)))
       end
     else
+      @number_of_branches_evaluated += 1      # we ran out of words, so this branch is now a leaf - letter_mapping is a solution letter mapping
       [letter_mapping]
     end
   end
@@ -138,9 +147,10 @@ def main
   solver = CryptogramSolver.new(file_path)
   
   # phrase = "NIJBVO OBJO YAVWJB ABVB"    # "insert test phrase here"
-  phrase = "the best way to find yourself is to lose yourself in the service of others"
+  phrase = gen_cryptogram("the best way to find yourself is to lose yourself in the service of others")
   # phrase = gen_cryptogram("insert test phrase here")
   # phrase = gen_cryptogram("most food is yummy")
+  # phrase = "why the long face"    # ha ha! good luck!
   puts phrase
 
   t1 = Time.now
